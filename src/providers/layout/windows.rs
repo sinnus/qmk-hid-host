@@ -1,13 +1,15 @@
+use std::mem;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::Arc;
 use tokio::sync::broadcast;
+use windows::Win32::Foundation::HWND;
 use windows::Win32::{
     Globalization::{GetLocaleInfoW, LOCALE_SISO639LANGNAME},
     UI::{
         Input::Ime::ImmGetDefaultIMEWnd,
         Input::KeyboardAndMouse::GetKeyboardLayout,
         TextServices::HKL,
-        WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
+        WindowsAndMessaging::{GetForegroundWindow, GetGUIThreadInfo, GetWindowThreadProcessId, GUITHREADINFO},
     },
 };
 
@@ -16,8 +18,40 @@ use crate::data_type::DataType;
 
 use super::super::_base::Provider;
 
+fn get_focus_window() -> Option<HWND> {
+    // Инициализация структуры GUITHREADINFO
+    let mut gui = GUITHREADINFO {
+        cbSize: mem::size_of::<GUITHREADINFO>() as u32,
+        ..Default::default()
+    };
+
+    // Получение информации о GUI-потоке
+    unsafe {
+        if GetGUIThreadInfo(0, &mut gui).is_err() {
+            return None; // Если вызов неудачен, возвращаем None
+        }
+    }
+
+    // Проверка hwndFocus
+    let hwnd_focused = gui.hwndFocus;
+    if hwnd_focused == HWND(0) {
+        // Если hwndFocus пуст, используем GetForegroundWindow
+        let hwnd_foreground = unsafe { GetForegroundWindow() };
+        if hwnd_foreground == HWND(0) {
+            tracing::debug!("NONE 0");
+            return None; // Если активное окно не найдено, возвращаем None
+        }
+        return Some(hwnd_foreground); // Возвращаем дескриптор активного окна
+    }
+
+    tracing::debug!("OK");
+
+    // Возвращаем дескриптор окна с фокусом
+    Some(hwnd_focused)
+}
+
 unsafe fn get_layout() -> Option<String> {
-    let focused_window = ImmGetDefaultIMEWnd(GetForegroundWindow());
+    let focused_window = ImmGetDefaultIMEWnd(get_focus_window()?);
     let active_thread = GetWindowThreadProcessId(focused_window, Some(std::ptr::null_mut()));
     let layout = GetKeyboardLayout(active_thread);
     let locale_id = (std::mem::transmute::<HKL, u64>(layout) & 0xFFFF) as u32;
