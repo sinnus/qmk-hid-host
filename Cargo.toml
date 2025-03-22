@@ -51,6 +51,7 @@ features = [
     "Win32_UI_Input_KeyboardAndMouse",
     "Win32_UI_TextServices",
     "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_Ime",
 ]
 [dependencies.windows-core]
 version = "0.56"

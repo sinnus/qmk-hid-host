@@ -4,6 +4,7 @@ use tokio::sync::broadcast;
 use windows::Win32::{
     Globalization::{GetLocaleInfoW, LOCALE_SISO639LANGNAME},
     UI::{
+        Input::Ime::ImmGetDefaultIMEWnd,
         Input::KeyboardAndMouse::GetKeyboardLayout,
         TextServices::HKL,
         WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId},
@@ -16,7 +17,7 @@ use crate::data_type::DataType;
 use super::super::_base::Provider;
 
 unsafe fn get_layout() -> Option<String> {
-    let focused_window = GetForegroundWindow();
+    let focused_window = ImmGetDefaultIMEWnd(GetForegroundWindow());
     let active_thread = GetWindowThreadProcessId(focused_window, Some(std::ptr::null_mut()));
     let layout = GetKeyboardLayout(active_thread);
     let locale_id = (std::mem::transmute::<HKL, u64>(layout) & 0xFFFF) as u32;
@@ -67,6 +68,7 @@ impl Provider for LayoutProvider {
 
                 if let Some(layout) = unsafe { get_layout() } {
                     if synced_layout != layout {
+                        tracing::info!("Synced layout: {}", layout);
                         synced_layout = layout;
                         send_data(&synced_layout, layouts, &data_sender);
                     }
