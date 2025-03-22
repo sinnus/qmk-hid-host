@@ -38,7 +38,6 @@ fn get_focus_window() -> Option<HWND> {
         // Если hwndFocus пуст, используем GetForegroundWindow
         let hwnd_foreground = unsafe { GetForegroundWindow() };
         if hwnd_foreground == HWND(0) {
-            tracing::debug!("NONE 0");
             return None; // Если активное окно не найдено, возвращаем None
         }
         return Some(hwnd_foreground); // Возвращаем дескриптор активного окна
